@@ -2,6 +2,10 @@
 
 Use the following sections as separate JupyterLab cells (Markdown headings + code cells).
 
+## 0) Restart kernel + run all (optional)
+
+Use JupyterLab’s **Kernel → Restart Kernel and Run All Cells** before re-running the workflow.
+
 ## 1) Imports
 
 ```python
@@ -117,7 +121,7 @@ for path in iter_input_files("Modbus_readings_*.csv"):
 print(f"Saved plots to {output_dir}")
 ```
 
-## 6) Detect anomalies (long-duration continuous usage)
+## 6) Detect anomalies (long-duration continuous usage + low-flow leaks)
 
 ```python
 def within_tolerance(value: float, baseline: float, tolerance: float) -> bool:
@@ -211,6 +215,8 @@ def merge_intervals(intervals):
 min_duration_s = 2 * 60 * 60
 tolerance = 0.10
 max_gap_s = 5 * 60
+MIN_AVG_FLOW_L_MIN = 0.5
+LEAK_MIN_AVG_FLOW_L_MIN = 0.1
 anomaly_rows = []
 for path in iter_input_files("Modbus_readings_*.csv"):
     timestamps, flow_rates, volumes = load_series(path)
@@ -226,8 +232,6 @@ for path in iter_input_files("Modbus_readings_*.csv"):
     for start, end in merged_intervals:
         duration_s = (timestamps[end] - timestamps[start]).total_seconds()
         avg_flow = sum(flow_rates[start : end + 1]) / (end - start + 1)
-        if avg_flow < 0.5:
-            continue
         rates = []
         for idx in range(start + 1, end + 1):
             delta_v = volumes[idx] - volumes[idx - 1]
@@ -236,6 +240,13 @@ for path in iter_input_files("Modbus_readings_*.csv"):
                 continue
             rates.append(delta_v / (delta_t / 60.0))
         avg_rate = sum(rates) / len(rates) if rates else 0.0
+        if avg_flow < MIN_AVG_FLOW_L_MIN and avg_rate < LEAK_MIN_AVG_FLOW_L_MIN:
+            continue
+        note = (
+            "low_flow_leak"
+            if avg_flow < MIN_AVG_FLOW_L_MIN
+            else "suspicious_long_duration_usage"
+        )
         anomaly_rows.append(
             {
                 "file": path.name,
@@ -244,7 +255,7 @@ for path in iter_input_files("Modbus_readings_*.csv"):
                 "end_date": timestamps[end].date().isoformat(),
                 "end_time": timestamps[end].time().replace(microsecond=0).isoformat(),
                 "duration_hours": round(duration_s / 3600, 2),
-                "note": "suspicious_long_duration_usage",
+                "note": note,
                 "avg_flow_rate_L_min": round(avg_flow, 3),
                 "avg_volume_rate_L_min": round(avg_rate, 3),
             }
