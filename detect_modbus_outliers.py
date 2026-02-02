@@ -4,7 +4,8 @@
 Flags intervals where flow stays relatively constant (±10%) for >= 2 hours,
 or volume increases at a relatively constant rate (±10%) for >= 2 hours.
 
-Writes an interval-based CSV report that marks suspicious long-duration usage.
+Writes an interval-based CSV report that marks suspicious long-duration usage,
+including low-flow leaks that accumulate steadily.
 """
 from __future__ import annotations
 
@@ -13,6 +14,9 @@ import glob
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, List, Tuple
+
+MIN_AVG_FLOW_L_MIN = 0.5
+LEAK_MIN_AVG_FLOW_L_MIN = 0.1
 
 
 def iter_input_files(pattern: str) -> Iterable[Path]:
@@ -175,8 +179,6 @@ def detect_outliers(
             for start, end in merged_intervals:
                 duration_s = (timestamps[end] - timestamps[start]).total_seconds()
                 avg_flow = sum(flow_rates[start : end + 1]) / (end - start + 1)
-                if avg_flow < 0.5:
-                    continue
                 rates = []
                 for idx in range(start + 1, end + 1):
                     delta_v = volumes[idx] - volumes[idx - 1]
@@ -185,6 +187,13 @@ def detect_outliers(
                         continue
                     rates.append(delta_v / (delta_t / 60.0))
                 avg_rate = sum(rates) / len(rates) if rates else 0.0
+                if avg_flow < MIN_AVG_FLOW_L_MIN and avg_rate < LEAK_MIN_AVG_FLOW_L_MIN:
+                    continue
+                note = (
+                    "low_flow_leak"
+                    if avg_flow < MIN_AVG_FLOW_L_MIN
+                    else "suspicious_long_duration_usage"
+                )
                 writer.writerow(
                     [
                         path.name,
@@ -193,7 +202,7 @@ def detect_outliers(
                         timestamps[end].date().isoformat(),
                         timestamps[end].time().replace(microsecond=0).isoformat(),
                         f"{duration_s / 3600:.2f}",
-                        "suspicious_long_duration_usage",
+                        note,
                         f"{avg_flow:.3f}",
                         f"{avg_rate:.3f}",
                     ]
