@@ -16,20 +16,14 @@ Output columns:
 from __future__ import annotations
 
 import csv
-import glob
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable
 
-
-def iter_input_files(pattern: str) -> Iterable[Path]:
-    for filename in sorted(glob.glob(pattern)):
-        path = Path(filename)
-        if path.is_file():
-            yield path
+from modbus_io import iter_input_files
 
 
 def merge_files(input_pattern: str, output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", newline="") as output_file:
         writer = csv.writer(output_file)
         writer.writerow(["date", "time", "flow_rate_L_min", "volume"])
@@ -56,8 +50,8 @@ def merge_files(input_pattern: str, output_path: Path) -> None:
 
 
 def main() -> None:
-    input_pattern = "Modbus_readings_*.csv"
-    output_path = Path("merged_modbus_readings.csv")
+    input_pattern = "data/Modbus_readings_*.csv"
+    output_path = Path("output") / "merged_modbus_readings.csv"
     merge_files(input_pattern, output_path)
     print(f"Merged files into {output_path}")
 
