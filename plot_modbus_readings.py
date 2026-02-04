@@ -56,7 +56,7 @@ def plot_file(path: Path, output_dir: Path) -> None:
 
 
 def main() -> None:
-    input_pattern = "data/Modbus_readings_*.csv"
+    input_pattern = "static_data/Modbus_readings_*.csv"
     output_dir = Path("output")
     for path in iter_input_files(input_pattern):
         plot_file(path, output_dir)

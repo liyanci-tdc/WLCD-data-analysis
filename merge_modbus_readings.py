@@ -50,7 +50,7 @@ def merge_files(input_pattern: str, output_path: Path) -> None:
 
 
 def main() -> None:
-    input_pattern = "data/Modbus_readings_*.csv"
+    input_pattern = "static_data/Modbus_readings_*.csv"
     output_path = Path("output") / "merged_modbus_readings.csv"
     merge_files(input_pattern, output_path)
     print(f"Merged files into {output_path}")

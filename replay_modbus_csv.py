@@ -9,59 +9,28 @@ from __future__ import annotations
 import csv
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
 from modbus_io import iter_input_files
 
-# =========================
-# Replay Settings
-# =========================
-INPUT_PATTERN = "static_data/Modbus_readings_*.csv"
-OUTPUT_DIR = Path("live_data")
 
-# Replay speed:
-# SPEEDUP = 1.0 is real-time, 10.0 is 10x faster, etc.
-# Cap/clamp: MIN_SPEEDUP <= SPEEDUP <= MAX_SPEEDUP (hardware safety limits).
-# Example: SPEEDUP = 25.0
-SPEEDUP = 6000.0
-# Lower/upper bounds for SPEEDUP (hardware safety limits).
-MIN_SPEEDUP = 0.1
-MAX_SPEEDUP = 9999.0
-
-# Output time for the first column in live_data.
-# OUTPUT_TIME_MODE:
-# - "raw":     keep the original epoch timestamp from the source CSV.
-# - "clock":   HHMMSS clock time from the timestamp.
-# - "elapsed": HHMMSS since the first row in each file (starts at 000000).
-OUTPUT_TIME_MODE = "raw"  # "raw", "clock", or "elapsed"
-OUTPUT_TIME_FORMAT = "%H%M%S"
-
-# Progress line during replay (single-line update).
-# Example: SHOW_PROGRESS = True
-SHOW_PROGRESS = True
-PROGRESS_INTERVAL_SEC = 10.0
-
-# Restrict replay range by date (YYYYMMDD). Use None for full range.
-# Example: START_DAY = "20251015"
-START_DAY = "20260120"
-# Example: END_DAY = "20251020"
-END_DAY = None
-
-# Whether to loop the dataset forever.
-# Example: LOOP = False
-LOOP = False
-
-# Remove old live_data files at startup.
-# Example: CLEAR_OUTPUT_ON_START = False
-CLEAR_OUTPUT_ON_START = True
-
-
-def clear_live_data(output_dir: Path) -> None:
-    if not output_dir.exists():
-        return
-    for path in output_dir.glob("Modbus_readings_*.csv"):
-        path.unlink()
+@dataclass
+class ReplayConfig:
+    input_pattern: str
+    output_dir: Path
+    speedup: float
+    min_speedup: float
+    max_speedup: float
+    start_day: str | None
+    end_day: str | None
+    loop: bool
+    show_progress: bool
+    progress_interval_sec: float
+    output_time_mode: str
+    output_time_format: str
+    flush_each_row: bool
 
 
 def _scan_first_last_ts(input_file) -> tuple[float | None, float | None]:
@@ -88,19 +57,27 @@ def _format_hhmmss_compact(seconds: float) -> str:
     return f"{hours:02d}{minutes:02d}{secs:02d}"
 
 
+def _safe_print(text: str, *, end: str = "\n", flush: bool = False) -> None:
+    try:
+        print(text, end=end, flush=flush)
+    except OSError:
+        # Ignore broken/invalid stdout (e.g., when output is closed).
+        return
+
+
 def replay_file(
     path: Path,
-    output_dir: Path,
+    config: ReplayConfig,
     speedup: float,
     prev_ts: float | None,
     progress_prefix: str,
 ) -> float | None:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / path.name
+    config.output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = config.output_dir / path.name
     with path.open(newline="") as input_file, output_path.open("a", newline="") as output_file:
         first_ts = None
         last_ts_file = None
-        if SHOW_PROGRESS:
+        if config.show_progress:
             first_ts, last_ts_file = _scan_first_last_ts(input_file)
             input_file.seek(0)
         reader = csv.reader(input_file)
@@ -109,23 +86,23 @@ def replay_file(
         sleep = time.sleep
         localtime = time.localtime
         strftime = time.strftime
-        elapsed_mode = OUTPUT_TIME_MODE == "elapsed"
-        clock_mode = OUTPUT_TIME_MODE == "clock"
+        elapsed_mode = config.output_time_mode == "elapsed"
+        clock_mode = config.output_time_mode == "clock"
         format_elapsed = _format_hhmmss_compact
         last_ts = prev_ts
         last_progress = time.monotonic()
         last_progress_len = 0
-        progress_enabled = SHOW_PROGRESS and last_ts_file is not None
+        progress_enabled = config.show_progress and last_ts_file is not None
         progress_span = (
             max(0.0, last_ts_file - first_ts) if progress_enabled and first_ts is not None else 0.0
         )
-        use_single_line = SHOW_PROGRESS and sys.stdout.isatty()
-        if SHOW_PROGRESS:
+        use_single_line = config.show_progress and sys.stdout.isatty()
+        if config.show_progress:
             line = f"{progress_prefix} | 0%"
             if use_single_line:
-                print(line, end="\r", flush=True)
+                _safe_print(line, end="\r", flush=True)
             else:
-                print(line, flush=True)
+                _safe_print(line, flush=True)
             last_progress_len = len(line)
         for row in reader:
             if not row:
@@ -146,12 +123,14 @@ def replay_file(
                 elapsed = max(0.0, ts - first_ts)
                 row[0] = format_elapsed(elapsed)
             elif clock_mode:
-                row[0] = strftime(OUTPUT_TIME_FORMAT, localtime(ts))
+                row[0] = strftime(config.output_time_format, localtime(ts))
             writerow(row)
+            if config.flush_each_row:
+                output_file.flush()
             last_ts = ts
             if progress_enabled:
                 now = time.monotonic()
-                if now - last_progress >= PROGRESS_INTERVAL_SEC:
+                if now - last_progress >= config.progress_interval_sec:
                     if progress_span > 0 and first_ts is not None:
                         pct = int((ts - first_ts) / progress_span * 100)
                         pct = max(0, min(100, pct))
@@ -160,63 +139,60 @@ def replay_file(
                     line = f"{progress_prefix} | {pct}%"
                     padding = " " * max(0, last_progress_len - len(line))
                     if use_single_line:
-                        print(line + padding, end="\r", flush=True)
+                        _safe_print(line + padding, end="\r", flush=True)
                     else:
-                        print(line + padding, flush=True)
+                        _safe_print(line + padding, flush=True)
                     last_progress_len = len(line)
                     last_progress = now
-        if SHOW_PROGRESS:
+        if config.show_progress:
             pct = 100 if progress_span > 0 else 0
             line = f"{progress_prefix} | {pct}%"
             padding = " " * max(0, last_progress_len - len(line))
             if use_single_line:
-                print(line + padding)
+                _safe_print(line + padding)
             else:
-                print(line + padding, flush=True)
+                _safe_print(line + padding, flush=True)
     return last_ts
 
 
-def iter_files(pattern: str) -> Iterable[Path]:
+def iter_files(pattern: str, start_day: str | None, end_day: str | None) -> Iterable[Path]:
     files = list(iter_input_files(pattern))
-    if START_DAY or END_DAY:
+    if start_day or end_day:
         selected = []
         for path in files:
             stem = path.stem
             if not stem.startswith("Modbus_readings_"):
                 continue
             day = stem.split("_", 2)[-1]
-            if START_DAY and day < START_DAY:
+            if start_day and day < start_day:
                 continue
-            if END_DAY and day > END_DAY:
+            if end_day and day > end_day:
                 continue
             selected.append(path)
         return selected
     return files
 
 
-def main() -> None:
-    speedup = max(MIN_SPEEDUP, min(SPEEDUP, MAX_SPEEDUP))
-    if speedup != SPEEDUP and SHOW_PROGRESS:
+def run_replay(config: ReplayConfig) -> None:
+    speedup = max(config.min_speedup, min(config.speedup, config.max_speedup))
+    if speedup != config.speedup and config.show_progress:
         print(
-            f"SPEEDUP {SPEEDUP} out of bounds; clamped to {speedup} "
-            f"(range {MIN_SPEEDUP}..{MAX_SPEEDUP})."
+            f"SPEEDUP {config.speedup} out of bounds; clamped to {speedup} "
+            f"(range {config.min_speedup}..{config.max_speedup})."
         )
-    if CLEAR_OUTPUT_ON_START:
-        clear_live_data(OUTPUT_DIR)
-
     loop_count = 0
     while True:
         loop_count += 1
         last_ts = None
-        for path in iter_files(INPUT_PATTERN):
+        for path in iter_files(config.input_pattern, config.start_day, config.end_day):
             day = path.stem.replace("Modbus_readings_", "")
             progress_prefix = f"Replaying {path.name} (day {day}) | loop {loop_count}"
-            last_ts = replay_file(path, OUTPUT_DIR, speedup, last_ts, progress_prefix)
-        if not LOOP:
+            last_ts = replay_file(path, config, speedup, last_ts, progress_prefix)
+        if not config.loop:
             break
-        if SHOW_PROGRESS:
+        if config.show_progress:
             print("Replay loop completed, restarting...")
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit("This module is not runnable directly. Use launch.py.")
