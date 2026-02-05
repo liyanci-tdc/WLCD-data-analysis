@@ -178,8 +178,8 @@ def _plot_event(
         ax.plot(xs, ys, linewidth=1, marker="o", markersize=2)
     else:
         ax.plot(xs, ys, linewidth=1)
-    ax.axvline(event["start"], color="green", linestyle="--", linewidth=1, label="start")
-    ax.axvline(event["end"], color="red", linestyle="--", linewidth=1, label="end")
+    ax.axvline(event["start"], color="green", linestyle="--", linewidth=1)
+    ax.axvline(event["end"], color="red", linestyle="--", linewidth=1)
     ax.set_xlim(window_start, window_end)
     ax.margins(x=0)
 
@@ -209,7 +209,7 @@ def _plot_event(
             bbox_to_anchor=config.legend_anchor,
             bbox_transform=fig.transFigure,
         )
-    else:
+    elif config.legend_loc:
         ax.legend(loc=config.legend_loc)
     fig.autofmt_xdate()
 

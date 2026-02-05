@@ -80,12 +80,12 @@ DIAG_OUTPUT_DIR = Path("output") / "diagnostic_plots"  # Output folder for plots
 DIAG_PADDING_MIN = 5  # Minutes of context before/after the event window.
 DIAG_Y_MAX = 5  # Flow rate upper limit (None = auto).
 DIAG_SHOW_POINTS = True  # True = show markers on each sample (finer time feel).
-DIAG_LEGEND_LOC = "upper left"  # Matplotlib legend location.
+DIAG_LEGEND_LOC = ""  # Matplotlib legend location (empty = hide legend).
 DIAG_LEGEND_OUTSIDE = True  # True = place legend in the right margin.
 DIAG_LEGEND_ANCHOR = (0.72, 0.30)  # Figure coords when legend is outside (x, y).
-DIAG_TEXT_BOX_LOC = (0.72, 0.95)  # Figure coords when text box is outside (x, y).
+DIAG_TEXT_BOX_LOC = (0.02, 0.08)  # Figure coords when text box is outside (x, y).
 DIAG_TEXT_BOX_OUTSIDE = True  # True = place metrics box in the right margin.
-DIAG_RIGHT_MARGIN = 0.68  # Fraction of figure width reserved for the plot.
+DIAG_RIGHT_MARGIN = 0.95  # Fraction of figure width reserved for the plot.
 DIAG_X_MAJOR_MIN = 5  # Major tick interval in minutes.
 DIAG_X_MINOR_MIN = 1  # Minor tick interval in minutes.
 DIAG_X_TIME_FORMAT = "%H:%M:%S"  # X-axis time format.
