@@ -19,25 +19,23 @@ import replay_modbus_csv as replay
 # Configuration
 # =========================
 # Mode switches.
-DEBUG_MODE = 0  # 0 = off, 1 = on (runs batch then live + compare).
-REPLAY_MODE = 0  # 0 = off, 1 = on.
-DETECT_MODE = 1  # 0 = off, 1 = batch, 2 = live.
+DEBUG_MODE = 1  # 0 = off, 1 = on (runs batch then live + compare).
+REPLAY_MODE = 1  # 0 = off, 1 = on.
+DETECT_MODE = 0  # 0 = off, 1 = batch, 2 = live.
 
 # Housekeeping.
 CLEAR_PREVIOUS_LIVE_DATA = 1  # 0 = keep live_data, 1 = clear live_data.
 CLEAR_PREVIOUS_OUTPUT = 1  # 0 = keep output, 1 = clear output.
 
 # Shared date range (YYYYMMDD) for replay + batch detector.
-RANGE_START_DAY = "20260120"  # Inclusive (None = no lower bound).
-RANGE_END_DAY = "20260130"  # Inclusive (None = no upper bound).
+RANGE_START_DAY = "20260126"  # Inclusive (None = no lower bound).
+RANGE_END_DAY = "20260128"  # Inclusive (None = no upper bound).
 
 # Replay settings (simulation).
 REPLAY_COMMON_INPUT_PATTERN = "static_data/Modbus_readings_*.csv"  # Source CSV glob.
 REPLAY_COMMON_OUTPUT_DIR = Path("live_data")  # Output folder for live files.
 REPLAY_COMMON_LOOP = False  # Loop over the date range forever.
-REPLAY_SPEED_VALUE = 1000.0  # 1.0 = real-time, 10.0 = 10x.
-REPLAY_SPEED_MIN = 0.1  # Lower bound (hardware safety).
-REPLAY_SPEED_MAX = 9999.0  # Upper bound (hardware safety).
+REPLAY_SPEED_VALUE = 10.0  # 1.0 = real-time, 10.0 = 10x.
 REPLAY_PROGRESS_ENABLED = True  # Print single-line progress while replaying.
 REPLAY_PROGRESS_INTERVAL_SEC = 5.0  # Progress update interval in seconds.
 REPLAY_TIME_MODE = "raw"  # "raw" (epoch), "clock" (HHMMSS), "elapsed" (HHMMSS).
@@ -47,11 +45,11 @@ REPLAY_OUTPUT_FLUSH_EACH_ROW = True  # True = immediate live visibility (slower)
 # Detector settings (common).
 DETECT_BATCH_OUTPUT_PATH = Path("output") / "abnormal_report_batch.csv"  # Batch CSV report.
 DETECT_LIVE_OUTPUT_PATH = Path("output") / "abnormal_report_live.csv"  # Live CSV report.
-DETECT_COMMON_MIN_DURATION_S = 10 * 60  # Minimum suspicious duration in seconds.
-DETECT_COMMON_TOLERANCE = 0.20  # Lower-side tolerance; high spikes are allowed.
+DETECT_COMMON_MIN_DURATION_S = 30 * 60  # Minimum suspicious duration in seconds.
+DETECT_COMMON_TOLERANCE = 0.10  # Lower-side tolerance; high spikes are allowed.
 DETECT_COMMON_MIN_RATE_L_MIN = 1  # Minimum flow rate to count as flowing (L/min).
 DETECT_COMMON_MIN_FLOW_FRACTION = 0.8  # Fraction of window minutes that must show flow.
-DETECT_COMMON_CONSTANT_FRACTION = 0.8  # Fraction of flowing minutes that must be "constant" (0 = skip).
+DETECT_COMMON_CONSTANT_FRACTION = 0.6  # Fraction of flowing minutes that must be "constant" (0 = skip).
 DETECT_COMMON_ALERT_LOG_PATH = Path("output") / "abnormal_alerts.log"  # Alert log file.
 DETECT_COMMON_ALERT_TO_CONSOLE = True  # Print alerts to console.
 DETECT_COMMON_ALERT_TO_LOG = False  # Write alerts to log file.
@@ -82,16 +80,12 @@ def _normalize_day(value: str | int | None) -> str | None:
     return str(value)
 
 
-def _clamp_speed(value: float, minimum: float, maximum: float) -> float:
-    return max(minimum, min(value, maximum))
-
-
 def _compute_live_lookback_s() -> float:
     """Ensure live lookback is large enough when replay speedup skips data."""
     base = float(DETECT_LIVE_LOOKBACK_S)
     if REPLAY_MODE != 1 and DEBUG_MODE != 1:
         return base
-    effective_speed = _clamp_speed(REPLAY_SPEED_VALUE, REPLAY_SPEED_MIN, REPLAY_SPEED_MAX)
+    effective_speed = max(replay.SPEEDUP_MIN, min(REPLAY_SPEED_VALUE, replay.SPEEDUP_MAX))
     # If data jumps too far between polls, we can miss intervals; expand lookback to cover it.
     data_jump_s = DETECT_LIVE_POLL_INTERVAL_S * effective_speed
     required = DETECT_COMMON_MIN_DURATION_S + data_jump_s
@@ -160,8 +154,6 @@ def build_replay_config() -> replay.ReplayConfig:
         input_pattern=REPLAY_COMMON_INPUT_PATTERN,
         output_dir=REPLAY_COMMON_OUTPUT_DIR,
         speedup=REPLAY_SPEED_VALUE,
-        min_speedup=REPLAY_SPEED_MIN,
-        max_speedup=REPLAY_SPEED_MAX,
         start_day=_normalize_day(RANGE_START_DAY),
         end_day=_normalize_day(RANGE_END_DAY),
         loop=REPLAY_COMMON_LOOP,

@@ -62,7 +62,7 @@ Key parameters:
 - `REPLAY_COMMON_INPUT_PATTERN` - glob for static input files.
 - `REPLAY_COMMON_OUTPUT_DIR` - live output folder (default `live_data/`).
 - `REPLAY_SPEED_VALUE` - speedup factor (1.0 = real time).
-- `REPLAY_SPEED_MIN`, `REPLAY_SPEED_MAX` - safety bounds.
+- Speedup is clamped to hard limits in `replay_modbus_csv.py` (0.1..9999.0).
 - `REPLAY_TIME_MODE`
   - `"raw"` = epoch timestamps
   - `"clock"` = HHMMSS clock time

@@ -15,14 +15,16 @@ from typing import Iterable
 
 from modbus_io import iter_input_files
 
+# Speedup hard limits (hardware safety).
+SPEEDUP_MIN = 0.1  # Lower bound (hardware safety).
+SPEEDUP_MAX = 9999.0  # Upper bound (hardware safety).
+
 
 @dataclass
 class ReplayConfig:
     input_pattern: str
     output_dir: Path
     speedup: float
-    min_speedup: float
-    max_speedup: float
     start_day: str | None
     end_day: str | None
     loop: bool
@@ -174,11 +176,11 @@ def iter_files(pattern: str, start_day: str | None, end_day: str | None) -> Iter
 
 
 def run_replay(config: ReplayConfig) -> None:
-    speedup = max(config.min_speedup, min(config.speedup, config.max_speedup))
+    speedup = max(SPEEDUP_MIN, min(config.speedup, SPEEDUP_MAX))
     if speedup != config.speedup and config.show_progress:
         print(
             f"SPEEDUP {config.speedup} out of bounds; clamped to {speedup} "
-            f"(range {config.min_speedup}..{config.max_speedup})."
+            f"(range {SPEEDUP_MIN}..{SPEEDUP_MAX})."
         )
     loop_count = 0
     while True:
