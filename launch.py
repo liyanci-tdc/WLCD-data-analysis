@@ -23,7 +23,7 @@ import replay_modbus_csv as replay
 VERIFY_MODE = 1  # 0 = off, 1 = on (runs batch then live + compare).
 REPLAY_MODE = 1  # 0 = off, 1 = on.
 DETECT_MODE = 0  # 0 = off, 1 = batch, 2 = live.
-DIAG_MODE = 0  # 0 = off, 1 = run once, 2 = follow live, 3 = both.
+DIAGNO_MODE = 0  # 0 = off, 1 = plot existing report once, 2 = follow live report, 3 = both.
 
 # Housekeeping.
 CLEAR_PREVIOUS_LIVE_DATA = 1  # 0 = keep live_data, 1 = clear live_data.
@@ -319,15 +319,15 @@ def _diag_config(report_path: Path, *, follow: bool) -> diagnose.DiagnosisConfig
 
 
 def _should_diag(source: str) -> bool:
-    return DIAG_MODE != 0 and DIAG_SOURCE in ("both", source)
+    return DIAGNO_MODE != 0 and DIAG_SOURCE in ("both", source)
 
 
 def _diag_should_run_once() -> bool:
-    return DIAG_MODE in (1, 3)
+    return DIAGNO_MODE in (1, 3)
 
 
 def _diag_should_follow_live() -> bool:
-    return DIAG_MODE in (2, 3)
+    return DIAGNO_MODE in (2, 3)
 
 
 def main() -> None:
