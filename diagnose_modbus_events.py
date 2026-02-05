@@ -34,6 +34,8 @@ class DiagnosisConfig:
     legend_loc: str
     text_box_loc: tuple[float, float]
     text_box_outside: bool
+    legend_outside: bool
+    legend_anchor: tuple[float, float]
     x_major_min: int | None
     x_minor_min: int | None
     x_time_format: str
@@ -200,7 +202,10 @@ def _plot_event(
     ax.grid(True, which="major", alpha=0.3)
     if config.x_minor_min:
         ax.grid(True, which="minor", alpha=0.15)
-    ax.legend(loc=config.legend_loc)
+    if config.legend_outside:
+        ax.legend(loc=config.legend_loc, bbox_to_anchor=config.legend_anchor)
+    else:
+        ax.legend(loc=config.legend_loc)
     fig.autofmt_xdate()
 
     duration_h = metrics["duration_s"] / 3600 if metrics["duration_s"] is not None else 0.0
@@ -234,8 +239,9 @@ def _plot_event(
             f"lower_bound: {lower_bound:.2f} (tolerance {config.tolerance:.2f})"
         )
 
+    if config.text_box_outside or config.legend_outside:
+        fig.subplots_adjust(right=0.72)
     if config.text_box_outside:
-        fig.subplots_adjust(right=0.78)
         fig.text(
             config.text_box_loc[0],
             config.text_box_loc[1],

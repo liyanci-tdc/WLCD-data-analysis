@@ -118,6 +118,8 @@ You can also enable diagnostics to generate plots per detected event:
 - `DIAG_Y_MAX`
 - `DIAG_SHOW_POINTS` (show markers at each sample)
 - `DIAG_LEGEND_LOC` (matplotlib legend location)
+- `DIAG_LEGEND_OUTSIDE` (place legend in right margin)
+- `DIAG_LEGEND_ANCHOR` (legend anchor when outside)
 - `DIAG_TEXT_BOX_LOC` (axes or figure coordinates for the metrics box)
 - `DIAG_TEXT_BOX_OUTSIDE` (True = place metrics box in right margin)
 - `DIAG_X_MAJOR_MIN` (major tick interval in minutes)

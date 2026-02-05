@@ -57,8 +57,7 @@ def detect_outliers_batch(
         writer.writerow(core.REPORT_HEADER)
         for idx, path in enumerate(paths):
             if show_progress and total:
-                pct = int((idx / total) * 100)
-                line = f"Batch {idx + 1}/{total} {path.name} | {pct}%"
+                line = f"Batch {idx + 1}/{total} {path.name}"
                 padding = " " * max(0, last_progress_len - len(line))
                 if use_single_line:
                     core._safe_print(line + padding, end="\r", flush=True)
@@ -119,8 +118,7 @@ def detect_outliers_batch(
                 )
 
             if show_progress and total:
-                pct = int(((idx + 1) / total) * 100)
-                line = f"Batch {idx + 1}/{total} {path.name} | {pct}%"
+                line = f"Batch {idx + 1}/{total} {path.name}"
                 padding = " " * max(0, last_progress_len - len(line))
                 if use_single_line:
                     core._safe_print(line + padding, flush=True)
