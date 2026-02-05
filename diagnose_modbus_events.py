@@ -97,12 +97,31 @@ def _iter_report_events(report_path: Path) -> Tuple[Iterable[dict], Dict[str, in
         return events, header
 
 
-def _compute_metrics(
+def _slice_by_time(
     timestamps: List[datetime],
     flows: List[float],
     volumes: List[float],
     start: datetime,
     end: datetime,
+) -> Tuple[List[datetime], List[float], List[float]]:
+    xs: List[datetime] = []
+    ys: List[float] = []
+    vs: List[float] = []
+    for ts, flow, vol in zip(timestamps, flows, volumes):
+        if ts < start:
+            continue
+        if ts > end:
+            break
+        xs.append(ts)
+        ys.append(flow)
+        vs.append(vol)
+    return xs, ys, vs
+
+
+def _compute_metrics(
+    timestamps: List[datetime],
+    flows: List[float],
+    volumes: List[float],
     *,
     min_rate: float,
     tolerance: float,
@@ -123,13 +142,12 @@ def _compute_metrics(
         within = sum(1 for flow in flow_minutes if flow >= lower_bound)
         constant_fraction = within / len(flow_minutes)
 
-    duration_s = (end - start).total_seconds()
     return {
-        "duration_s": duration_s,
         "flow_fraction": flow_fraction,
         "constant_fraction": constant_fraction,
         "median_flow": median_flow,
         "lower_bound": lower_bound,
+        "window_minutes": total_minutes,
     }
 
 
@@ -169,8 +187,29 @@ def _plot_event(
         print(f"Diagnosis skipped: no data for {event['file']} event {event['event_id']}")
         return False
 
-    metrics = _compute_metrics(
-        xs, ys, vs, event["start"], event["end"], min_rate=config.min_rate, tolerance=config.tolerance
+    trigger_end = event["start"] + timedelta(seconds=config.min_duration_s)
+    if trigger_end > event["end"]:
+        trigger_end = event["end"]
+    trigger_xs, trigger_ys, trigger_vs = _slice_by_time(
+        timestamps, flow_rates, volumes, event["start"], trigger_end
+    )
+    event_xs, event_ys, event_vs = _slice_by_time(
+        timestamps, flow_rates, volumes, event["start"], event["end"]
+    )
+
+    trigger_metrics = _compute_metrics(
+        trigger_xs,
+        trigger_ys,
+        trigger_vs,
+        min_rate=config.min_rate,
+        tolerance=config.tolerance,
+    )
+    event_metrics = _compute_metrics(
+        event_xs,
+        event_ys,
+        event_vs,
+        min_rate=config.min_rate,
+        tolerance=config.tolerance,
     )
 
     fig, ax = plt.subplots(figsize=(12, 4))
@@ -214,36 +253,52 @@ def _plot_event(
             ax.legend(loc=config.legend_loc)
     fig.autofmt_xdate()
 
-    duration_h = metrics["duration_s"] / 3600 if metrics["duration_s"] is not None else 0.0
-    window_minutes = max(1, int((config.min_duration_s + 59) // 60))
-    flow_fraction = metrics["flow_fraction"]
-    constant_fraction = metrics["constant_fraction"]
-    median_flow = metrics["median_flow"]
-    lower_bound = metrics["lower_bound"]
+    duration_h = (event["end"] - event["start"]).total_seconds() / 3600
+    trigger_window_minutes = trigger_metrics["window_minutes"]
+    trigger_flow_fraction = trigger_metrics["flow_fraction"]
+    trigger_constant_fraction = trigger_metrics["constant_fraction"]
+    trigger_median_flow = trigger_metrics["median_flow"]
+    trigger_lower_bound = trigger_metrics["lower_bound"]
+    event_flow_fraction = event_metrics["flow_fraction"]
+    event_constant_fraction = event_metrics["constant_fraction"]
 
     lines = [
         f"duration_hours: {duration_h:.2f} (min {config.min_duration_s/3600:.2f})",
-        f"window_minutes: {window_minutes}",
         f"min_rate_L_min: {config.min_rate:.2f}",
+        f"trigger_window_minutes: {trigger_window_minutes}",
     ]
-    if flow_fraction is None:
-        lines.append("flow_fraction: n/a")
+    if trigger_flow_fraction is None:
+        lines.append("trigger_flow_fraction: n/a")
     else:
         lines.append(
-            f"flow_fraction: {flow_fraction:.2f} (min {config.min_flow_fraction:.2f})"
+            f"trigger_flow_fraction: {trigger_flow_fraction:.2f} (min {config.min_flow_fraction:.2f})"
         )
     if config.constant_fraction <= 0:
-        lines.append("constant_fraction: disabled")
-    elif constant_fraction is None or median_flow is None or lower_bound is None:
-        lines.append("constant_fraction: n/a")
+        lines.append("trigger_constant_fraction: disabled")
+    elif (
+        trigger_constant_fraction is None
+        or trigger_median_flow is None
+        or trigger_lower_bound is None
+    ):
+        lines.append("trigger_constant_fraction: n/a")
     else:
         lines.append(
-            f"constant_fraction: {constant_fraction:.2f} (min {config.constant_fraction:.2f})"
+            f"trigger_constant_fraction: {trigger_constant_fraction:.2f} (min {config.constant_fraction:.2f})"
         )
-        lines.append(f"median_flow: {median_flow:.2f}")
+        lines.append(f"trigger_median_flow: {trigger_median_flow:.2f}")
         lines.append(
-            f"lower_bound: {lower_bound:.2f} (tolerance {config.tolerance:.2f})"
+            f"trigger_lower_bound: {trigger_lower_bound:.2f} (tol {config.tolerance:.2f})"
         )
+    if event_flow_fraction is None:
+        lines.append("event_flow_fraction: n/a")
+    else:
+        lines.append(f"event_flow_fraction: {event_flow_fraction:.2f}")
+    if config.constant_fraction <= 0:
+        lines.append("event_constant_fraction: disabled")
+    elif event_constant_fraction is None:
+        lines.append("event_constant_fraction: n/a")
+    else:
+        lines.append(f"event_constant_fraction: {event_constant_fraction:.2f}")
 
     if config.text_box_outside or config.legend_outside:
         fig.subplots_adjust(right=config.right_margin)
