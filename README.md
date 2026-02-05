@@ -111,12 +111,11 @@ Verification mode writes a compare report to:
 
 You can also enable diagnostics to generate plots per detected event:
 
-- `DIAG_ENABLE` (0/1)
+- `DIAG_MODE` (0 = off, 1 = run once, 2 = follow live, 3 = both)
 - `DIAG_SOURCE` ("batch", "live", "both")
 - `DIAG_OUTPUT_DIR`
 - `DIAG_PADDING_MIN`
 - `DIAG_Y_MAX`
-- `DIAG_FOLLOW_LIVE` (tail live report and plot as events finalize)
 
 ## Outputs
 

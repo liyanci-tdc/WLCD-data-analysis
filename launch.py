@@ -23,6 +23,7 @@ import replay_modbus_csv as replay
 VERIFY_MODE = 1  # 0 = off, 1 = on (runs batch then live + compare).
 REPLAY_MODE = 1  # 0 = off, 1 = on.
 DETECT_MODE = 0  # 0 = off, 1 = batch, 2 = live.
+DIAG_MODE = 0  # 0 = off, 1 = run once, 2 = follow live, 3 = both.
 
 # Housekeeping.
 CLEAR_PREVIOUS_LIVE_DATA = 1  # 0 = keep live_data, 1 = clear live_data.
@@ -73,12 +74,10 @@ VERIFY_COMPARE_MAX_DIFF = 5  # Max mismatched rows to include in report.
 VERIFY_COMPARE_REPORT_PATH = Path("output") / "abnormal_report_compare.csv"
 
 # Diagnosis settings.
-DIAG_ENABLE = 0  # 0 = off, 1 = on.
 DIAG_SOURCE = "both"  # "batch", "live", or "both".
 DIAG_OUTPUT_DIR = Path("output") / "diagnostic_plots"  # Output folder for plots.
-DIAG_PADDING_MIN = 0  # Minutes of context before/after the event window.
-DIAG_Y_MAX = None  # Flow rate upper limit (None = auto).
-DIAG_FOLLOW_LIVE = False  # If True, tail live report and plot as events finalize.
+DIAG_PADDING_MIN = 5  # Minutes of context before/after the event window.
+DIAG_Y_MAX = 5  # Flow rate upper limit (None = auto).
 
 
 def _normalize_day(value: str | int | None) -> str | None:
@@ -320,9 +319,15 @@ def _diag_config(report_path: Path, *, follow: bool) -> diagnose.DiagnosisConfig
 
 
 def _should_diag(source: str) -> bool:
-    if DIAG_ENABLE != 1:
-        return False
-    return DIAG_SOURCE in ("both", source)
+    return DIAG_MODE != 0 and DIAG_SOURCE in ("both", source)
+
+
+def _diag_should_run_once() -> bool:
+    return DIAG_MODE in (1, 3)
+
+
+def _diag_should_follow_live() -> bool:
+    return DIAG_MODE in (2, 3)
 
 
 def main() -> None:
@@ -375,9 +380,9 @@ def main() -> None:
             total_live,
         )
         print(f"Verification compare report saved to {VERIFY_COMPARE_REPORT_PATH}")
-        if _should_diag("batch"):
+        if _diag_should_run_once() and _should_diag("batch"):
             diagnose.run_diagnosis(_diag_config(DETECT_BATCH_OUTPUT_PATH, follow=False))
-        if _should_diag("live"):
+        if _diag_should_run_once() and _should_diag("live"):
             diagnose.run_diagnosis(_diag_config(DETECT_LIVE_OUTPUT_PATH, follow=False))
         return
 
@@ -393,7 +398,7 @@ def main() -> None:
         replay_thread.start()
         threads.append(replay_thread)
 
-    if DETECT_MODE == 2 and _should_diag("live") and DIAG_FOLLOW_LIVE:
+    if DETECT_MODE == 2 and _should_diag("live") and _diag_should_follow_live():
         diag_thread = threading.Thread(
             target=diagnose.run_diagnosis,
             args=(_diag_config(DETECT_LIVE_OUTPUT_PATH, follow=True),),
@@ -407,8 +412,10 @@ def main() -> None:
             time.sleep(1)
     except KeyboardInterrupt:
         print("Stopping...")
-        if DETECT_MODE == 1 and _should_diag("batch"):
+        if DETECT_MODE == 1 and _diag_should_run_once() and _should_diag("batch"):
             diagnose.run_diagnosis(_diag_config(DETECT_BATCH_OUTPUT_PATH, follow=False))
+        if DETECT_MODE == 2 and _diag_should_run_once() and _should_diag("live"):
+            diagnose.run_diagnosis(_diag_config(DETECT_LIVE_OUTPUT_PATH, follow=False))
 
 
 if __name__ == "__main__":
