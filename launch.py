@@ -82,9 +82,10 @@ DIAG_Y_MAX = 5  # Flow rate upper limit (None = auto).
 DIAG_SHOW_POINTS = True  # True = show markers on each sample (finer time feel).
 DIAG_LEGEND_LOC = "upper left"  # Matplotlib legend location.
 DIAG_LEGEND_OUTSIDE = True  # True = place legend in the right margin.
-DIAG_LEGEND_ANCHOR = (1.02, 1.0)  # Legend anchor when outside (x, y).
-DIAG_TEXT_BOX_LOC = (0.80, 0.95)  # Axes or figure coords for the metrics box (x, y).
+DIAG_LEGEND_ANCHOR = (0.72, 0.30)  # Figure coords when legend is outside (x, y).
+DIAG_TEXT_BOX_LOC = (0.72, 0.95)  # Figure coords when text box is outside (x, y).
 DIAG_TEXT_BOX_OUTSIDE = True  # True = place metrics box in the right margin.
+DIAG_RIGHT_MARGIN = 0.68  # Fraction of figure width reserved for the plot.
 DIAG_X_MAJOR_MIN = 5  # Major tick interval in minutes.
 DIAG_X_MINOR_MIN = 1  # Minor tick interval in minutes.
 DIAG_X_TIME_FORMAT = "%H:%M:%S"  # X-axis time format.
@@ -330,6 +331,7 @@ def _diag_config(report_path: Path, *, follow: bool) -> diagnose.DiagnosisConfig
         text_box_outside=DIAG_TEXT_BOX_OUTSIDE,
         legend_outside=DIAG_LEGEND_OUTSIDE,
         legend_anchor=DIAG_LEGEND_ANCHOR,
+        right_margin=DIAG_RIGHT_MARGIN,
         x_major_min=DIAG_X_MAJOR_MIN,
         x_minor_min=DIAG_X_MINOR_MIN,
         x_time_format=DIAG_X_TIME_FORMAT,

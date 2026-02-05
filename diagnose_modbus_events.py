@@ -36,6 +36,7 @@ class DiagnosisConfig:
     text_box_outside: bool
     legend_outside: bool
     legend_anchor: tuple[float, float]
+    right_margin: float
     x_major_min: int | None
     x_minor_min: int | None
     x_time_format: str
@@ -203,7 +204,11 @@ def _plot_event(
     if config.x_minor_min:
         ax.grid(True, which="minor", alpha=0.15)
     if config.legend_outside:
-        ax.legend(loc=config.legend_loc, bbox_to_anchor=config.legend_anchor)
+        ax.legend(
+            loc=config.legend_loc,
+            bbox_to_anchor=config.legend_anchor,
+            bbox_transform=fig.transFigure,
+        )
     else:
         ax.legend(loc=config.legend_loc)
     fig.autofmt_xdate()
@@ -240,7 +245,7 @@ def _plot_event(
         )
 
     if config.text_box_outside or config.legend_outside:
-        fig.subplots_adjust(right=0.72)
+        fig.subplots_adjust(right=config.right_margin)
     if config.text_box_outside:
         fig.text(
             config.text_box_loc[0],
