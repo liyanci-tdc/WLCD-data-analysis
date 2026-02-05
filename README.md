@@ -116,6 +116,9 @@ You can also enable diagnostics to generate plots per detected event:
 - `DIAG_OUTPUT_DIR`
 - `DIAG_PADDING_MIN`
 - `DIAG_Y_MAX`
+- `DIAG_SHOW_POINTS` (show markers at each sample)
+- `DIAG_LEGEND_LOC` (matplotlib legend location)
+- `DIAG_TEXT_BOX_LOC` (axes coordinates for the metrics box)
 
 ## Outputs
 

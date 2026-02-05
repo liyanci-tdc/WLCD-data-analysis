@@ -29,6 +29,9 @@ class DiagnosisConfig:
     min_duration_s: float
     padding_min: int
     y_max: float | None
+    show_points: bool
+    legend_loc: str
+    text_box_loc: tuple[float, float]
     follow: bool
     poll_interval_s: float
 
@@ -163,7 +166,10 @@ def _plot_event(
     )
 
     fig, ax = plt.subplots(figsize=(12, 4))
-    ax.plot(xs, ys, linewidth=1)
+    if config.show_points:
+        ax.plot(xs, ys, linewidth=1, marker="o", markersize=2)
+    else:
+        ax.plot(xs, ys, linewidth=1)
     ax.axvline(event["start"], color="green", linestyle="--", linewidth=1, label="start")
     ax.axvline(event["end"], color="red", linestyle="--", linewidth=1, label="end")
     ax.set_xlim(window_start, window_end)
@@ -182,6 +188,7 @@ def _plot_event(
     ax.set_xlabel("Time")
     ax.set_ylabel("Flow Rate (L/min)")
     ax.grid(True, alpha=0.3)
+    ax.legend(loc=config.legend_loc)
     fig.autofmt_xdate()
 
     duration_h = metrics["duration_s"] / 3600 if metrics["duration_s"] is not None else 0.0
@@ -216,8 +223,8 @@ def _plot_event(
         )
 
     ax.text(
-        0.01,
-        0.99,
+        config.text_box_loc[0],
+        config.text_box_loc[1],
         "\n".join(lines),
         transform=ax.transAxes,
         ha="left",

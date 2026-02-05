@@ -21,10 +21,10 @@ import replay_modbus_csv as replay
 # Configuration
 # =========================
 # Mode switches.
-VERIFY_MODE = 1  # 0 = off, 1 = on (runs batch then live + compare).
-REPLAY_MODE = 1  # 0 = off, 1 = on.
-DETECT_MODE = 0  # 0 = off, 1 = batch, 2 = live.
-DIAGNO_MODE = 0  # 0 = off, 1 = plot existing report once, 2 = follow live report, 3 = both.
+VERIFY_MODE = 0  # 0 = off, 1 = on (runs batch then live + compare).
+REPLAY_MODE = 0  # 0 = off, 1 = on.
+DETECT_MODE = 1  # 0 = off, 1 = batch, 2 = live.
+DIAGNO_MODE = 1  # 0 = off, 1 = plot existing report once, 2 = follow live report, 3 = both.
 
 # Housekeeping.
 CLEAR_PREVIOUS_LIVE_DATA = 1  # 0 = keep live_data, 1 = clear live_data.
@@ -79,6 +79,9 @@ DIAG_SOURCE = "both"  # "batch", "live", or "both".
 DIAG_OUTPUT_DIR = Path("output") / "diagnostic_plots"  # Output folder for plots.
 DIAG_PADDING_MIN = 5  # Minutes of context before/after the event window.
 DIAG_Y_MAX = 5  # Flow rate upper limit (None = auto).
+DIAG_SHOW_POINTS = True  # True = show markers on each sample (finer time feel).
+DIAG_LEGEND_LOC = "upper right"  # Matplotlib legend location.
+DIAG_TEXT_BOX_LOC = (0.01, 0.75)  # Axes coords for the metrics box (x, y).
 
 
 def _normalize_day(value: str | int | None) -> str | None:
@@ -315,6 +318,9 @@ def _diag_config(report_path: Path, *, follow: bool) -> diagnose.DiagnosisConfig
         min_duration_s=DETECT_COMMON_MIN_DURATION_S,
         padding_min=DIAG_PADDING_MIN,
         y_max=DIAG_Y_MAX,
+        show_points=DIAG_SHOW_POINTS,
+        legend_loc=DIAG_LEGEND_LOC,
+        text_box_loc=DIAG_TEXT_BOX_LOC,
         follow=follow,
         poll_interval_s=DETECT_LIVE_POLL_INTERVAL_S,
     )
@@ -410,14 +416,18 @@ def main() -> None:
         diag_thread.start()
 
     try:
-        while True:
-            time.sleep(1)
+        if threads:
+            for thread in threads:
+                thread.join()
+        else:
+            while True:
+                time.sleep(1)
     except KeyboardInterrupt:
         print("Stopping...")
-        if DETECT_MODE == 1 and _diag_should_run_once() and _should_diag("batch"):
-            diagnose.run_diagnosis(_diag_config(DETECT_BATCH_OUTPUT_PATH, follow=False))
-        if DETECT_MODE == 2 and _diag_should_run_once() and _should_diag("live"):
-            diagnose.run_diagnosis(_diag_config(DETECT_LIVE_OUTPUT_PATH, follow=False))
+    if DETECT_MODE == 1 and _diag_should_run_once() and _should_diag("batch"):
+        diagnose.run_diagnosis(_diag_config(DETECT_BATCH_OUTPUT_PATH, follow=False))
+    if DETECT_MODE == 2 and _diag_should_run_once() and _should_diag("live"):
+        diagnose.run_diagnosis(_diag_config(DETECT_LIVE_OUTPUT_PATH, follow=False))
 
 
 if __name__ == "__main__":
