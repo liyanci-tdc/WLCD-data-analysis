@@ -63,11 +63,8 @@ Key parameters:
 - `REPLAY_COMMON_OUTPUT_DIR` - live output folder (default `live_data/`).
 - `REPLAY_SPEED_VALUE` - speedup factor (1.0 = real time).
 - Speedup is clamped to hard limits in `replay_modbus_csv.py` (0.1..9999.0).
-- `REPLAY_TIME_MODE`
-  - `"raw"` = epoch timestamps
-  - `"clock"` = HHMMSS clock time
-  - `"elapsed"` = HHMMSS since file start
-- `REPLAY_TIME_FORMAT` - only used when `REPLAY_TIME_MODE="clock"`.
+- Replay preserves raw epoch timestamps. If you need a different time format,
+  change it at the sensor/source side, not in the replay pipeline.
 - `REPLAY_PROGRESS_ENABLED` - single-line progress in terminal.
 
 ## Detector settings (common)

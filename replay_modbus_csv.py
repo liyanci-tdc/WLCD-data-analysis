@@ -30,8 +30,6 @@ class ReplayConfig:
     loop: bool
     show_progress: bool
     progress_interval_sec: float
-    output_time_mode: str
-    output_time_format: str
     flush_each_row: bool
 
 
@@ -50,13 +48,6 @@ def _scan_first_last_ts(input_file) -> tuple[float | None, float | None]:
             first_ts = ts
         last_ts = ts
     return first_ts, last_ts
-
-
-def _format_hhmmss_compact(seconds: float) -> str:
-    total = max(0, int(seconds))
-    minutes, secs = divmod(total, 60)
-    hours, minutes = divmod(minutes, 60)
-    return f"{hours:02d}{minutes:02d}{secs:02d}"
 
 
 def _safe_print(text: str, *, end: str = "\n", flush: bool = False) -> None:
@@ -86,11 +77,6 @@ def replay_file(
         writer = csv.writer(output_file)
         writerow = writer.writerow
         sleep = time.sleep
-        localtime = time.localtime
-        strftime = time.strftime
-        elapsed_mode = config.output_time_mode == "elapsed"
-        clock_mode = config.output_time_mode == "clock"
-        format_elapsed = _format_hhmmss_compact
         last_ts = prev_ts
         last_progress = time.monotonic()
         last_progress_len = 0
@@ -121,11 +107,7 @@ def replay_file(
                 delta = ts - last_ts
                 if delta > 0:
                     sleep(delta / speedup)
-            if elapsed_mode and first_ts is not None:
-                elapsed = max(0.0, ts - first_ts)
-                row[0] = format_elapsed(elapsed)
-            elif clock_mode:
-                row[0] = strftime(config.output_time_format, localtime(ts))
+            # Keep raw epoch timestamps; time mode changes should happen at the sensor.
             writerow(row)
             if config.flush_each_row:
                 output_file.flush()

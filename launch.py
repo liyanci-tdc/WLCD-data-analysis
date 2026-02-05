@@ -35,11 +35,9 @@ RANGE_END_DAY = "20260128"  # Inclusive (None = no upper bound).
 REPLAY_COMMON_INPUT_PATTERN = "static_data/Modbus_readings_*.csv"  # Source CSV glob.
 REPLAY_COMMON_OUTPUT_DIR = Path("live_data")  # Output folder for live files.
 REPLAY_COMMON_LOOP = False  # Loop over the date range forever.
-REPLAY_SPEED_VALUE = 10.0  # 1.0 = real-time, 10.0 = 10x (clamped to 0.1..9999.0).
+REPLAY_SPEED_VALUE = 3000.0  # 1.0 = real-time, 10.0 = 10x (clamped to 0.1..9999.0).
 REPLAY_PROGRESS_ENABLED = True  # Print single-line progress while replaying.
 REPLAY_PROGRESS_INTERVAL_SEC = 5.0  # Progress update interval in seconds.
-REPLAY_TIME_MODE = "raw"  # "raw" (epoch), "clock" (HHMMSS), "elapsed" (HHMMSS).
-REPLAY_TIME_FORMAT = "%H%M%S"  # Only used when TIME_MODE="clock".
 REPLAY_OUTPUT_FLUSH_EACH_ROW = True  # True = immediate live visibility (slower).
 
 # Detector settings (common).
@@ -159,8 +157,6 @@ def build_replay_config() -> replay.ReplayConfig:
         loop=REPLAY_COMMON_LOOP,
         show_progress=REPLAY_PROGRESS_ENABLED,
         progress_interval_sec=REPLAY_PROGRESS_INTERVAL_SEC,
-        output_time_mode=REPLAY_TIME_MODE,
-        output_time_format=REPLAY_TIME_FORMAT,
         flush_each_row=REPLAY_OUTPUT_FLUSH_EACH_ROW,
     )
 
