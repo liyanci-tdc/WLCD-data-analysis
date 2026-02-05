@@ -352,6 +352,8 @@ def main() -> None:
         clear_previous.clear_live_data(REPLAY_COMMON_OUTPUT_DIR)
     if CLEAR_PREVIOUS_OUTPUT == 1:
         clear_previous.clear_output_dir(DETECT_LIVE_OUTPUT_PATH.parent)
+    if DIAGNO_MODE != 0 and CLEAR_PREVIOUS_OUTPUT == 1:
+        clear_previous.clear_output_dir(DIAG_OUTPUT_DIR)
 
     if VERIFY_MODE == 1:
         _run_batch_detector(DETECT_BATCH_OUTPUT_PATH)
