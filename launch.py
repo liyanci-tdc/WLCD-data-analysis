@@ -35,7 +35,7 @@ RANGE_END_DAY = "20260128"  # Inclusive (None = no upper bound).
 REPLAY_COMMON_INPUT_PATTERN = "static_data/Modbus_readings_*.csv"  # Source CSV glob.
 REPLAY_COMMON_OUTPUT_DIR = Path("live_data")  # Output folder for live files.
 REPLAY_COMMON_LOOP = False  # Loop over the date range forever.
-REPLAY_SPEED_VALUE = 10.0  # 1.0 = real-time, 10.0 = 10x.
+REPLAY_SPEED_VALUE = 10.0  # 1.0 = real-time, 10.0 = 10x (clamped to 0.1..9999.0).
 REPLAY_PROGRESS_ENABLED = True  # Print single-line progress while replaying.
 REPLAY_PROGRESS_INTERVAL_SEC = 5.0  # Progress update interval in seconds.
 REPLAY_TIME_MODE = "raw"  # "raw" (epoch), "clock" (HHMMSS), "elapsed" (HHMMSS).
