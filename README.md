@@ -91,7 +91,7 @@ Example (with your current style)
 ## Detector settings (live)
 
 - `DETECT_LIVE_INPUT_PATTERN` - glob for live files.
-- `DETECT_LIVE_END_GAP_S` - end event if no suspicious/continuous flow for this long.
+- `DETECT_COMMON_END_GAP_S` - end event if no suspicious/continuous flow for this long.
 - `DETECT_LIVE_UPDATE_INTERVAL_S` - emit ongoing rows at this interval.
 - `DETECT_LIVE_POLL_INTERVAL_S` - polling interval for file updates.
 - `DETECT_LIVE_LOOKBACK_S` - lookback buffer for live analysis.

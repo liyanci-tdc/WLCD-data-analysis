@@ -46,7 +46,7 @@ REPLAY_OUTPUT_FLUSH_EACH_ROW = True  # True = immediate live visibility (slower)
 # Detector settings (common).
 DETECT_BATCH_OUTPUT_PATH = Path("output") / "abnormal_report_batch.csv"  # Batch CSV report.
 DETECT_LIVE_OUTPUT_PATH = Path("output") / "abnormal_report_live.csv"  # Live CSV report.
-DETECT_COMMON_MIN_DURATION_S = 30 * 60  # Minimum suspicious duration in seconds.
+DETECT_COMMON_MIN_DURATION_S = 10 * 60  # Minimum suspicious duration in seconds.
 DETECT_COMMON_TOLERANCE = 0.10  # Lower-side tolerance; high spikes are allowed.
 DETECT_COMMON_MIN_RATE_L_MIN = 1  # Minimum flow rate to count as flowing (L/min).
 DETECT_COMMON_MIN_FLOW_FRACTION = 0.8  # Fraction of window minutes that must show flow.
@@ -58,12 +58,14 @@ DETECT_COMMON_ALERT_INCLUDE_STOP = False  # Emit stop alerts as well as start al
 
 # Detector settings (live).
 DETECT_LIVE_INPUT_PATTERN = "live_data/Modbus_readings_*.csv"  # Live file glob.
-DETECT_LIVE_END_GAP_S = 120  # End event if no suspicious/continuous flow for this long (seconds).
 DETECT_LIVE_UPDATE_INTERVAL_S = 10 * 60  # Write ongoing rows this often (seconds).
 DETECT_LIVE_POLL_INTERVAL_S = 5  # How often to poll the live file(s).
 DETECT_LIVE_LOOKBACK_S = DETECT_COMMON_MIN_DURATION_S * 2  # Base window for live analysis.
 DETECT_LIVE_FOLLOW_LATEST = True  # Follow newest live file if multiple exist.
 DETECT_LIVE_STATE_PATH = Path("output") / "abnormal_state.json"  # Resume state file.
+
+# Detector settings (end-gap).
+DETECT_COMMON_END_GAP_S = 120  # End event if no suspicious/continuous flow for this long (seconds).
 
 # Detector settings (batch).
 DETECT_BATCH_INPUT_PATTERN = "static_data/Modbus_readings_*.csv"  # Batch file glob.
@@ -195,7 +197,7 @@ def _run_batch_detector(output_path: Path) -> None:
         DETECT_COMMON_MIN_RATE_L_MIN,
         DETECT_COMMON_MIN_FLOW_FRACTION,
         DETECT_COMMON_CONSTANT_FRACTION,
-        DETECT_LIVE_END_GAP_S,
+        DETECT_COMMON_END_GAP_S,
         batch_start_day=_normalize_day(RANGE_START_DAY),
         batch_end_day=_normalize_day(RANGE_END_DAY),
         alert_to_console=DETECT_COMMON_ALERT_TO_CONSOLE,
@@ -222,7 +224,7 @@ def _run_live_detector(
         DETECT_COMMON_MIN_RATE_L_MIN,
         DETECT_COMMON_MIN_FLOW_FRACTION,
         DETECT_COMMON_CONSTANT_FRACTION,
-        DETECT_LIVE_END_GAP_S,
+        DETECT_COMMON_END_GAP_S,
         DETECT_LIVE_UPDATE_INTERVAL_S,
         DETECT_LIVE_POLL_INTERVAL_S,
         effective_lookback_s,
