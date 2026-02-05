@@ -203,14 +203,15 @@ def _plot_event(
     ax.grid(True, which="major", alpha=0.3)
     if config.x_minor_min:
         ax.grid(True, which="minor", alpha=0.15)
-    if config.legend_outside:
-        ax.legend(
-            loc=config.legend_loc,
-            bbox_to_anchor=config.legend_anchor,
-            bbox_transform=fig.transFigure,
-        )
-    elif config.legend_loc:
-        ax.legend(loc=config.legend_loc)
+    if config.legend_loc:
+        if config.legend_outside:
+            ax.legend(
+                loc=config.legend_loc,
+                bbox_to_anchor=config.legend_anchor,
+                bbox_transform=fig.transFigure,
+            )
+        else:
+            ax.legend(loc=config.legend_loc)
     fig.autofmt_xdate()
 
     duration_h = metrics["duration_s"] / 3600 if metrics["duration_s"] is not None else 0.0

@@ -56,13 +56,10 @@ def detect_outliers_batch(
         writer = csv.writer(output_file)
         writer.writerow(core.REPORT_HEADER)
         for idx, path in enumerate(paths):
-            if show_progress and total:
+            if show_progress and total and use_single_line:
                 line = f"Batch {idx + 1}/{total} {path.name}"
                 padding = " " * max(0, last_progress_len - len(line))
-                if use_single_line:
-                    core._safe_print(line + padding, end="\r", flush=True)
-                else:
-                    core._safe_print(line + padding, flush=True)
+                core._safe_print(line + padding, end="\r", flush=True)
                 last_progress_len = len(line)
 
             timestamps, flow_rates, volumes = load_series(path)
