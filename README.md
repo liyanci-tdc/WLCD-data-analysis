@@ -30,7 +30,7 @@ This replays static files into `live_data/` and runs the live detector.
 
 ## Mode switches (top of launch.py)
 
-- `DEBUG_MODE`
+- `VERIFY_MODE`
   - `0` = off
   - `1` = on (runs batch, then live, then compares reports)
 - `REPLAY_MODE`
@@ -103,11 +103,26 @@ Example (with your current style)
 - `DETECT_BATCH_INPUT_PATTERN` - glob for static files.
 - `DETECT_BATCH_SHOW_PROGRESS` - progress output.
 
+## Diagnosis / verification
+
+Verification mode writes a compare report to:
+
+- `output/abnormal_report_compare.csv`
+
+You can also enable diagnostics to generate plots per detected event:
+
+- `DIAG_ENABLE` (0/1)
+- `DIAG_SOURCE` ("batch", "live", "both")
+- `DIAG_OUTPUT_DIR`
+- `DIAG_PADDING_MIN`
+- `DIAG_Y_MAX`
+- `DIAG_FOLLOW_LIVE` (tail live report and plot as events finalize)
+
 ## Outputs
 
 - `output/abnormal_report_batch.csv` - batch report.
 - `output/abnormal_report_live.csv` - live report.
-- `output/abnormal_report_compare.csv` - debug compare report (when enabled).
+- `output/abnormal_report_compare.csv` - verification compare report (when enabled).
 - `output/abnormal_state.json` - live detector resume state.
 - `output/abnormal_alerts.log` - optional alert log.
 
@@ -123,5 +138,5 @@ end_day_num,end_date,end_time,duration_hours,note,avg_flow_rate_L_min,total_volu
 
 ## Stop / exit
 
-Press `Ctrl+C` to stop. In debug mode, live stops automatically after the
-idle timeout configured by `DETECT_DEBUG_IDLE_S`.
+Press `Ctrl+C` to stop. In verification mode, live stops automatically after the
+idle timeout configured by `VERIFY_IDLE_S`.

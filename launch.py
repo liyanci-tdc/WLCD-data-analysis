@@ -13,13 +13,14 @@ from pathlib import Path
 import clear_previous
 import detect_modbus_batch as detect_batch
 import detect_modbus_live as detect_live
+import diagnose_modbus_events as diagnose
 import replay_modbus_csv as replay
 
 # =========================
 # Configuration
 # =========================
 # Mode switches.
-DEBUG_MODE = 1  # 0 = off, 1 = on (runs batch then live + compare).
+VERIFY_MODE = 1  # 0 = off, 1 = on (runs batch then live + compare).
 REPLAY_MODE = 1  # 0 = off, 1 = on.
 DETECT_MODE = 0  # 0 = off, 1 = batch, 2 = live.
 
@@ -66,10 +67,18 @@ DETECT_LIVE_STATE_PATH = Path("output") / "abnormal_state.json"  # Resume state 
 DETECT_BATCH_INPUT_PATTERN = "static_data/Modbus_readings_*.csv"  # Batch file glob.
 DETECT_BATCH_SHOW_PROGRESS = True  # Batch progress output.
 
-# Debug settings.
-DETECT_DEBUG_IDLE_S = 10  # Seconds to wait for live data to go idle after replay ends.
-DETECT_DEBUG_COMPARE_MAX_DIFF = 5  # Max mismatched rows to include in report.
-DETECT_DEBUG_COMPARE_REPORT_PATH = Path("output") / "abnormal_report_compare.csv"
+# Verification settings.
+VERIFY_IDLE_S = 10  # Seconds to wait for live data to go idle after replay ends.
+VERIFY_COMPARE_MAX_DIFF = 5  # Max mismatched rows to include in report.
+VERIFY_COMPARE_REPORT_PATH = Path("output") / "abnormal_report_compare.csv"
+
+# Diagnosis settings.
+DIAG_ENABLE = 0  # 0 = off, 1 = on.
+DIAG_SOURCE = "both"  # "batch", "live", or "both".
+DIAG_OUTPUT_DIR = Path("output") / "diagnostic_plots"  # Output folder for plots.
+DIAG_PADDING_MIN = 0  # Minutes of context before/after the event window.
+DIAG_Y_MAX = None  # Flow rate upper limit (None = auto).
+DIAG_FOLLOW_LIVE = False  # If True, tail live report and plot as events finalize.
 
 
 def _normalize_day(value: str | int | None) -> str | None:
@@ -81,7 +90,7 @@ def _normalize_day(value: str | int | None) -> str | None:
 def _compute_live_lookback_s() -> float:
     """Ensure live lookback is large enough when replay speedup skips data."""
     base = float(DETECT_LIVE_LOOKBACK_S)
-    if REPLAY_MODE != 1 and DEBUG_MODE != 1:
+    if REPLAY_MODE != 1 and VERIFY_MODE != 1:
         return base
     effective_speed = max(replay.SPEEDUP_MIN, min(REPLAY_SPEED_VALUE, replay.SPEEDUP_MAX))
     # If data jumps too far between polls, we can miss intervals; expand lookback to cover it.
@@ -276,10 +285,10 @@ def _write_compare_report(
         writer.writerow(["summary_extra_in_live", total_extra, ""])
 
         if total_missing:
-            for row, count in list(missing_in_live.items())[:DETECT_DEBUG_COMPARE_MAX_DIFF]:
+            for row, count in list(missing_in_live.items())[:VERIFY_COMPARE_MAX_DIFF]:
                 writer.writerow(["missing_in_live", count, " | ".join(row)])
         if total_extra:
-            for row, count in list(extra_in_live.items())[:DETECT_DEBUG_COMPARE_MAX_DIFF]:
+            for row, count in list(extra_in_live.items())[:VERIFY_COMPARE_MAX_DIFF]:
                 writer.writerow(["extra_in_live", count, " | ".join(row)])
 
 
@@ -292,6 +301,30 @@ def run_detector() -> None:
         raise ValueError("DETECT_MODE must be 0 (off), 1 (batch), or 2 (live).")
 
 
+def _diag_config(report_path: Path, *, follow: bool) -> diagnose.DiagnosisConfig:
+    return diagnose.DiagnosisConfig(
+        report_path=report_path,
+        output_dir=DIAG_OUTPUT_DIR,
+        static_data_dir=Path("static_data"),
+        live_data_dir=Path("live_data"),
+        min_rate=DETECT_COMMON_MIN_RATE_L_MIN,
+        tolerance=DETECT_COMMON_TOLERANCE,
+        min_flow_fraction=DETECT_COMMON_MIN_FLOW_FRACTION,
+        constant_fraction=DETECT_COMMON_CONSTANT_FRACTION,
+        min_duration_s=DETECT_COMMON_MIN_DURATION_S,
+        padding_min=DIAG_PADDING_MIN,
+        y_max=DIAG_Y_MAX,
+        follow=follow,
+        poll_interval_s=DETECT_LIVE_POLL_INTERVAL_S,
+    )
+
+
+def _should_diag(source: str) -> bool:
+    if DIAG_ENABLE != 1:
+        return False
+    return DIAG_SOURCE in ("both", source)
+
+
 def main() -> None:
     replay_config = build_replay_config()
     _acquire_lock(Path(".launch.lock"))
@@ -299,15 +332,15 @@ def main() -> None:
         raise ValueError("REPLAY_MODE must be 0 (off) or 1 (on).")
     if DETECT_MODE not in (0, 1, 2):
         raise ValueError("DETECT_MODE must be 0 (off), 1 (batch), or 2 (live).")
-    if DEBUG_MODE not in (0, 1):
-        raise ValueError("DEBUG_MODE must be 0 (off) or 1 (on).")
+    if VERIFY_MODE not in (0, 1):
+        raise ValueError("VERIFY_MODE must be 0 (off) or 1 (on).")
 
     if CLEAR_PREVIOUS_LIVE_DATA == 1:
         clear_previous.clear_live_data(REPLAY_COMMON_OUTPUT_DIR)
     if CLEAR_PREVIOUS_OUTPUT == 1:
         clear_previous.clear_output_dir(DETECT_LIVE_OUTPUT_PATH.parent)
 
-    if DEBUG_MODE == 1:
+    if VERIFY_MODE == 1:
         _run_batch_detector(DETECT_BATCH_OUTPUT_PATH)
 
         replay_thread = threading.Thread(
@@ -321,9 +354,9 @@ def main() -> None:
             kwargs={
                 "output_path": DETECT_LIVE_OUTPUT_PATH,
                 "stop_event": stop_event,
-                "stop_after_idle_s": DETECT_DEBUG_IDLE_S,
+                "stop_after_idle_s": VERIFY_IDLE_S,
             },
-            name="detector-live-debug",
+            name="detector-live-verify",
             daemon=True,
         )
         live_thread.start()
@@ -335,13 +368,17 @@ def main() -> None:
             DETECT_BATCH_OUTPUT_PATH, DETECT_LIVE_OUTPUT_PATH
         )
         _write_compare_report(
-            DETECT_DEBUG_COMPARE_REPORT_PATH,
+            VERIFY_COMPARE_REPORT_PATH,
             missing_in_live,
             extra_in_live,
             total_batch,
             total_live,
         )
-        print(f"Debug compare report saved to {DETECT_DEBUG_COMPARE_REPORT_PATH}")
+        print(f"Verification compare report saved to {VERIFY_COMPARE_REPORT_PATH}")
+        if _should_diag("batch"):
+            diagnose.run_diagnosis(_diag_config(DETECT_BATCH_OUTPUT_PATH, follow=False))
+        if _should_diag("live"):
+            diagnose.run_diagnosis(_diag_config(DETECT_LIVE_OUTPUT_PATH, follow=False))
         return
 
     threads = []
@@ -356,11 +393,22 @@ def main() -> None:
         replay_thread.start()
         threads.append(replay_thread)
 
+    if DETECT_MODE == 2 and _should_diag("live") and DIAG_FOLLOW_LIVE:
+        diag_thread = threading.Thread(
+            target=diagnose.run_diagnosis,
+            args=(_diag_config(DETECT_LIVE_OUTPUT_PATH, follow=True),),
+            name="diagnose-live",
+            daemon=True,
+        )
+        diag_thread.start()
+
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
         print("Stopping...")
+        if DETECT_MODE == 1 and _should_diag("batch"):
+            diagnose.run_diagnosis(_diag_config(DETECT_BATCH_OUTPUT_PATH, follow=False))
 
 
 if __name__ == "__main__":
