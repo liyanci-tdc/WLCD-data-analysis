@@ -81,7 +81,11 @@ DIAG_PADDING_MIN = 5  # Minutes of context before/after the event window.
 DIAG_Y_MAX = 5  # Flow rate upper limit (None = auto).
 DIAG_SHOW_POINTS = True  # True = show markers on each sample (finer time feel).
 DIAG_LEGEND_LOC = "upper right"  # Matplotlib legend location.
-DIAG_TEXT_BOX_LOC = (0.01, 0.75)  # Axes coords for the metrics box (x, y).
+DIAG_TEXT_BOX_LOC = (0.80, 0.95)  # Axes or figure coords for the metrics box (x, y).
+DIAG_TEXT_BOX_OUTSIDE = True  # True = place metrics box in the right margin.
+DIAG_X_MAJOR_MIN = 5  # Major tick interval in minutes.
+DIAG_X_MINOR_MIN = 1  # Minor tick interval in minutes.
+DIAG_X_TIME_FORMAT = "%H:%M:%S"  # X-axis time format.
 
 
 def _normalize_day(value: str | int | None) -> str | None:
@@ -321,6 +325,10 @@ def _diag_config(report_path: Path, *, follow: bool) -> diagnose.DiagnosisConfig
         show_points=DIAG_SHOW_POINTS,
         legend_loc=DIAG_LEGEND_LOC,
         text_box_loc=DIAG_TEXT_BOX_LOC,
+        text_box_outside=DIAG_TEXT_BOX_OUTSIDE,
+        x_major_min=DIAG_X_MAJOR_MIN,
+        x_minor_min=DIAG_X_MINOR_MIN,
+        x_time_format=DIAG_X_TIME_FORMAT,
         follow=follow,
         poll_interval_s=DETECT_LIVE_POLL_INTERVAL_S,
     )

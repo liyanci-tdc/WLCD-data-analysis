@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
 import detect_modbus_core as core
@@ -32,6 +33,10 @@ class DiagnosisConfig:
     show_points: bool
     legend_loc: str
     text_box_loc: tuple[float, float]
+    text_box_outside: bool
+    x_major_min: int | None
+    x_minor_min: int | None
+    x_time_format: str
     follow: bool
     poll_interval_s: float
 
@@ -187,7 +192,14 @@ def _plot_event(
     )
     ax.set_xlabel("Time")
     ax.set_ylabel("Flow Rate (L/min)")
-    ax.grid(True, alpha=0.3)
+    if config.x_major_min:
+        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=config.x_major_min))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter(config.x_time_format))
+    if config.x_minor_min:
+        ax.xaxis.set_minor_locator(mdates.MinuteLocator(interval=config.x_minor_min))
+    ax.grid(True, which="major", alpha=0.3)
+    if config.x_minor_min:
+        ax.grid(True, which="minor", alpha=0.15)
     ax.legend(loc=config.legend_loc)
     fig.autofmt_xdate()
 
@@ -222,16 +234,29 @@ def _plot_event(
             f"lower_bound: {lower_bound:.2f} (tolerance {config.tolerance:.2f})"
         )
 
-    ax.text(
-        config.text_box_loc[0],
-        config.text_box_loc[1],
-        "\n".join(lines),
-        transform=ax.transAxes,
-        ha="left",
-        va="top",
-        fontsize=9,
-        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85},
-    )
+    if config.text_box_outside:
+        fig.subplots_adjust(right=0.78)
+        fig.text(
+            config.text_box_loc[0],
+            config.text_box_loc[1],
+            "\n".join(lines),
+            transform=fig.transFigure,
+            ha="left",
+            va="top",
+            fontsize=9,
+            bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85},
+        )
+    else:
+        ax.text(
+            config.text_box_loc[0],
+            config.text_box_loc[1],
+            "\n".join(lines),
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=9,
+            bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85},
+        )
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     safe_start = event["start"].strftime("%H%M%S")
